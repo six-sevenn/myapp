@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Рисуем маску</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  #container { position: relative; display: inline-block; border: 1px solid #ccc; }
+  #photo {
+    display: block;
+    max-width: 600px; /* фиксируем максимальную ширину */
+    width: 100%;
+    height: auto;
+  }
+  #maskCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    cursor: crosshair;
+  }
+  #controls { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Рисуем маску</h2>
+
+<div id="container">
+  <img id="photo" src="photo.png" alt="Photo">
+  <canvas id="maskCanvas"></canvas>
+</div>
+
+<div id="controls">
+  <label>Размер кисти: <span id="brushValue">20</span></label>
+  <input type="range" id="brushSize" min="5" max="100" value="20">
+  <button id="clearBtn">Очистить маску</button>
+  <button id="saveBtn">Сохранить маску</button>
+</div>
+
+<script>
+const photo = document.getElementById("photo");
+const canvas = document.getElementById("maskCanvas");
+const ctx = canvas.getContext("2d");
+const brushSize = document.getElementById("brushSize");
+const brushValue = document.getElementById("brushValue");
+
+// Настройка canvas под размер фото на странице
+function resizeCanvas() {
+  const rect = photo.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+photo.onload = resizeCanvas;
+window.addEventListener("resize", resizeCanvas);
+
+// Получение координат мыши на canvas
+function getMousePos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+// Рисование кистью
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+canvas.addEventListener("mousedown", e => {
+  drawing = true;
+  const pos = getMousePos(e);
+  lastX = pos.x;
+  lastY = pos.y;
+});
+
+canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mouseout", () => drawing = false);
+
+canvas.addEventListener("mousemove", e => {
+  if (!drawing) return;
+  const pos = getMousePos(e);
+
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = brushSize.value;
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+
+  lastX = pos.x;
+  lastY = pos.y;
+});
+
+// Размер кисти
+brushSize.addEventListener("input", () => {
+  brushValue.textContent = brushSize.value;
+});
+
+// Очистка маски
+document.getElementById("clearBtn").addEventListener("click", () => {
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+});
+
+// Сохранение маски (масштабируем на оригинальный размер фото)
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = photo.naturalWidth;
+  exportCanvas.height = photo.naturalHeight;
+  const exportCtx = exportCanvas.getContext("2d");
+
+  exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+  exportCanvas.toBlob(blob => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "mask.png";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, "image/png");
+});
+</script>
+
+</body>
+</html>
